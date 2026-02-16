@@ -1,0 +1,34 @@
+# cloudbuild.yaml
+steps:
+  # 1. Create the Dataflow Template
+  - name: 'python:3.11-slim'
+    id: 'Bake Template'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install apache-beam[gcp]
+        python etl/daily_etl.py \
+          --runner=DataflowRunner \
+          --project=$PROJECT_ID \
+          --staging_location=gs://${_GCS_BUCKET}/staging \
+          --template_location=gs://${_GCS_BUCKET}/daily_etl_template.json \
+          --region=us-central1 \
+          --setup_file=./setup.py
+
+  # 2. Upload the Metadata file so the UI works
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: 'Deploy Metadata'
+    args: ['cp', 'metadata.json', 'gs://${_GCS_BUCKET}/daily_etl_template.json_metadata']
+
+  # 3. Deploy the Airflow DAG to Composer
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: 'Deploy DAG'
+    args: ['cp', 'orchestration/daily_etl_dag.py', 'gs://${_COMPOSER_BUCKET}/dags/']
+
+substitutions:
+  _GCS_BUCKET: 'data_mgrt1'
+  _COMPOSER_BUCKET: 'us-central1-etl-gcp-poc1-or-609bea12-bucket'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

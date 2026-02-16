@@ -1,0 +1,19 @@
+{
+  "name": "GCS to BigQuery ETL",
+  "description": "ETL pipeline to move CSV data from GCS to BigQuery.",
+  "parameters": [
+    {
+      "name": "input_file",
+      "label": "Input GCS Path",
+      "helpText": "The GCS path to the CSV file you want to process.",
+      "isOptional": false,
+      "regex": "gs://.*"
+    },
+    {
+      "name": "output_table",
+      "label": "Target BigQuery Table",
+      "helpText": "The BQ table in PROJECT:DATASET.TABLE format.",
+      "isOptional": false
+    }
+  ]
+}
