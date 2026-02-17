@@ -28,7 +28,7 @@ steps:
 
 substitutions:
   _GCS_BUCKET: 'data_mgrt1'
-  _COMPOSER_BUCKET: 'us-central1-etl-gcp-poc1-or-609bea12-bucket'
+  _COMPOSER_BUCKET: 'us-central1-data-migration1-7b62cc2a-bucket'
 
 options:
   logging: CLOUD_LOGGING_ONLY
