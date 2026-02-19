@@ -22,13 +22,18 @@ steps:
     args: ['cp', 'metadata.json', 'gs://${_GCS_BUCKET}/daily_etl_template.json_metadata']
 
   # 3. Deploy the Airflow DAG to Composer
+ # - name: 'gcr.io/cloud-builders/gsutil'
+ #   id: 'Deploy DAG'
+ #   args: ['cp', 'orchestration/daily_etl_dag.py', 'gs://${_COMPOSER_BUCKET}/dags/']
+ 
+ # 3. Synchronize all DAGs to the Composer bucket
   - name: 'gcr.io/cloud-builders/gsutil'
-    id: 'Deploy DAG'
-    args: ['cp', 'orchestration/daily_etl_dag.py', 'gs://${_COMPOSER_BUCKET}/dags/'] 
+    id: 'Deploy All DAGs'
+    args: ['rsync', '-r', '-d', 'orchestration/', 'gs://${_COMPOSER_BUCKET}/dags/']
 
 substitutions:
   _GCS_BUCKET: 'data_mgrt1'
-  _COMPOSER_BUCKET: 'us-central1-data-migration1-7b62cc2a-bucket'
+  _COMPOSER_BUCKET: 'us-central1-data-migration1-ebb85354-bucket'
 
 options:
   logging: CLOUD_LOGGING_ONLY
