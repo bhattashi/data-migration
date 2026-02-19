@@ -49,10 +49,11 @@ with DAG(
         template=TEMPLATE_PATH,
         parameters={
             'input_file': f'gs://{BUCKET_NAME}/{TARGET_OBJECT}',
-            'output_table': BQ_TABLE
+            'output_table': BQ_TABLE,
         },
         location=REGION,
-        wait_for_result=True
+        # wait_for_result=True
+        wait_until_finished=True
     )
 
     # Dependency Flow
