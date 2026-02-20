@@ -33,7 +33,7 @@ steps:
 
 substitutions:
   _GCS_BUCKET: 'data_mgrt1'
-  _COMPOSER_BUCKET: 'us-central1-data-migration1-ebb85354-bucket'
+  _COMPOSER_BUCKET: 'us-central1-data-migration1-9b605844-bucket'
 
 options:
   logging: CLOUD_LOGGING_ONLY
