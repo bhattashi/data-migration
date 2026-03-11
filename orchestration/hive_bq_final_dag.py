@@ -47,6 +47,8 @@ with DAG(
                 method="GET",
                 response_check=lambda response: response.status_code == 200,
                 poke_interval=60,
+                timeout=3600, # 1 hour
+                extra_options={"timeout": 30}, # Wait 30s for the master to respond to the ping
                 mode="reschedule"
             )
 
