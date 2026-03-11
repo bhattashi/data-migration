@@ -75,4 +75,4 @@ with DAG(
             )            
 
             # Task Dependencies within the Group
-            wait_for_hdfs_file >> transfer_to_gcs >> create_ext_table
+            wait_for_hdfs_success >> transfer_to_gcs >> create_ext_table
