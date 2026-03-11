@@ -60,11 +60,9 @@ with DAG(
             wait_for_hdfs_success = PythonOperator(
                 task_id="wait_for_hdfs_success",
                 python_callable=check_hdfs_file,
-                endpoint=f"/webhdfs/v1/user/data/demo_migration/{table}/_SUCCESS?op=GETFILESTATUS",
                 ## hdfs_conn_id="on_prem_cdp_hdfs", # Points to the new WebHDFS connection # Airflow UI (Admin > Connections)
                 retries=10,
-                retry_delay=timedelta(minutes=1),
-                mode="reschedule"
+                retry_delay=timedelta(minutes=1)
             )
 
             # 2. TRANSFER: HDFS to GCS (Individual Job for Fault Isolation)
