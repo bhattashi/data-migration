@@ -43,7 +43,6 @@ with DAG(
                 task_id="wait_for_hdfs_success",
                 http_conn_id="webhdfs_http", # Create a standard 'HTTP' type connection
                 endpoint=f"/webhdfs/v1/user/data/demo_migration/{table}/_SUCCESS?op=GETFILESTATUS",
-                webhdfs_conn_id="webhdfs_default",
                 ## hdfs_conn_id="on_prem_cdp_hdfs", # Points to the new WebHDFS connection # Airflow UI (Admin > Connections)
                 method="GET",
                 response_check=lambda response: response.status_code == 200,
