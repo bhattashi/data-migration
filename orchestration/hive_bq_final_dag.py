@@ -6,6 +6,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import CloudDataTransferServiceRunJobOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
+from airflow.providers.http.sensors.http import HttpSensor
 # from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 
 # --- CONFIGURATION ---
@@ -38,11 +39,14 @@ with DAG(
         with TaskGroup(group_id=f"process_{table}") as table_group:
             
             # 1. SENSOR: Wait for Dataproc HDFS flag
-            wait_for_hdfs_file = WebHdfsSensor(
+            wait_for_hdfs_success = HttpSensor(
                 task_id="wait_for_hdfs_success",
-                filepath=f"/user/data/demo_migration/{table}/_SUCCESS",
+                http_conn_id="webhdfs_http", # Create a standard 'HTTP' type connection
+                endpoint=f"/webhdfs/v1/user/data/demo_migration/{table}/_SUCCESS?op=GETFILESTATUS",
                 webhdfs_conn_id="webhdfs_default",
                 ## hdfs_conn_id="on_prem_cdp_hdfs", # Points to the new WebHDFS connection # Airflow UI (Admin > Connections)
+                method="GET",
+                response_check=lambda response: response.status_code == 200,
                 poke_interval=60,
                 mode="reschedule"
             )
