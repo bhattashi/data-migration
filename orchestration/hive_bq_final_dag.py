@@ -15,9 +15,9 @@ from airflow.operators.python import PythonOperator
 
 # --- CONFIGURATION ---
 PROJECT_ID = "project-6d37e6ba-d918-463b-93a"
-DATASET_RAW = "raw_zone"        # External Tables
-DATASET_FINAL = "final_zone"    # Native Partitioned Tables
-DATASET_AUDIT = "audit_zone"    # Validation History
+DATASET_RAW = "raw"        # External Tables
+DATASET_FINAL = "final"    # Native Partitioned Tables
+DATASET_AUDIT = "audit"    # Validation History
 TABLES = ["loans_ac"] ## TABLES = ["loans_ac", "custmers", "products", "inventory"] # Add all 25 here
 
 default_args = {
