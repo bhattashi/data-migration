@@ -60,7 +60,7 @@ with DAG(
             # 2. TRANSFER: HDFS to GCS (Individual Job for Fault Isolation)
             transfer_to_gcs = CloudDataTransferServiceRunJobOperator(
                 task_id="transfer_to_gcs",
-                job_name="14508589021579537930",
+                job_name="transferJobs/14508589021579537930",
                 project_id=PROJECT_ID
             )
 
