@@ -104,16 +104,16 @@ with DAG(
                 }
             )
 
-			            # 5. Load data into Native BigQuery Table
-	        load_native_table = BigQueryInsertJobOperator(
-	            task_id="load_native_table",
-	            configuration={
-	                "query": {
-	                    "query": NATIVE_LOAD_SQL,
-	                    "useLegacySql": False,
-	                }
-	            }
-	        )
+			# 5. Load data into Native BigQuery Table
+            load_native_table = BigQueryInsertJobOperator(
+                task_id="load_native_table",
+                configuration={
+                    "query": {
+                        "query": NATIVE_LOAD_SQL,
+                        "useLegacySql": False,
+                    }
+                }
+            )
 			
             # Task Dependencies within the Group
             check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table
