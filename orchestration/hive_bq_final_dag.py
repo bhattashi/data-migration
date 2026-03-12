@@ -48,7 +48,7 @@ with DAG(
                 project_id="project-6d37e6ba-d918-463b-93a",
                 region="us-central1",
                 job={
-                    "reference": {"project_id": "your-project-id"},
+                    "reference": {"project_id": "project-6d37e6ba-d918-463b-93a"},
                     "placement": {"cluster_name": "cluster-data-migration"},
                     "hadoop_job": {
                         "main_class": "org.apache.hadoop.fs.FsShell",
