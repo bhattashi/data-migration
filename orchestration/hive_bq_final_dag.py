@@ -43,13 +43,13 @@ with DAG(
     for table in TABLES:
         with TaskGroup(group_id=f"process_{table}") as table_group:
 			# ----- BQ Native table SQL ------
-			NATIVE_LOAD_SQL = f"""
-			CREATE OR REPLACE TABLE `{PROJECT_ID}.{DATASET_FINAL}.{table}`
-			PARTITION BY ingestion_date
-			AS
-			SELECT *, CURRENT_DATE() AS ingestion_date
-			FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
-			"""
+            native_load_sql = f"""
+CREATE OR REPLACE TABLE `{PROJECT_ID}.{DATASET_FINAL}.{table}`
+PARTITION BY ingestion_date
+AS
+SELECT *, CURRENT_DATE() AS ingestion_date
+FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
+"""
             
             # 1. We submit a tiny "ls" command to Dataproc
             check_file_job = DataprocSubmitJobOperator(
