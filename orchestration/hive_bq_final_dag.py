@@ -7,6 +7,7 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
+from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 # from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 # from airflow.providers.http.sensors.http import HttpSensor
 import requests
@@ -64,7 +65,20 @@ with DAG(
                 project_id=PROJECT_ID
             )
 
-            # 3. EXTERNAL TABLE: Create Metadata Link
+            # 3. This sensor polls the STS API to see if the job has finished successfully
+            wait_for_transfer = CloudDataTransferServiceJobStatusSensor(
+                task_id="wait_for_transfer",
+                # Note: Use the same job_name format as the RunJobOperator
+                job_name="transferJobs/14508589021579537930",
+                project_id=PROJECT_ID,
+                # 'SUCCEEDED' is the status for a successful STS operation
+                expected_statuses={"SUCCEEDED","SUCCESS"},
+                poke_interval=60,  # Check every 1 minute
+                timeout=3600,      # Give up after 1 hour
+                mode="reschedule"  # 'reschedule' releases worker slots while waiting
+            )
+
+            # 4. EXTERNAL TABLE: Create Metadata Link
             create_ext_table = BigQueryInsertJobOperator(
                 task_id="create_external_table",
                 configuration={
