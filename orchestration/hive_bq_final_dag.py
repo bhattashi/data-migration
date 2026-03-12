@@ -5,6 +5,8 @@ from airflow import DAG
 from airflow.utils.task_group import TaskGroup
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import CloudDataTransferServiceRunJobOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
+from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
+from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
 # from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 # from airflow.providers.http.sensors.http import HttpSensor
 import requests
@@ -26,22 +28,6 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-# DEFINE YOUR FUNCTIONS HERE (Above the DAG) ---
-def check_hdfs_file():
-    # Use the current IP of your master node
-    url = "http://10.128.0.22:9870/webhdfs/v1/user/data/demo_migration/loans_ac/_SUCCESS?op=GETFILESTATUS"
-    try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            print("Successfully found _SUCCESS file.")
-            return True
-        else:
-            # This triggers a retry if the file isn't there yet
-            raise Exception(f"File not found yet. Status: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        # This triggers a retry if the network times out
-        raise Exception(f"Network error: {e}")
-
 with DAG(
     "hdfs_to_bq_production_pipeline",
     default_args=default_args,
@@ -56,13 +42,19 @@ with DAG(
     for table in TABLES:
         with TaskGroup(group_id=f"process_{table}") as table_group:
             
-            # 1. SENSOR: Wait for Dataproc HDFS flag
-            wait_for_hdfs_success = PythonOperator(
-                task_id="wait_for_hdfs_success",
-                python_callable=check_hdfs_file,
-                ## hdfs_conn_id="on_prem_cdp_hdfs", # Points to the new WebHDFS connection # Airflow UI (Admin > Connections)
-                retries=10,
-                retry_delay=timedelta(minutes=1)
+            # 1. We submit a tiny "ls" command to Dataproc
+            check_file_job = DataprocSubmitJobOperator(
+                task_id="check_hdfs_file_via_api",
+                project_id="project-6d37e6ba-d918-463b-93a",
+                region="us-central1",
+                job={
+                    "reference": {"project_id": "your-project-id"},
+                    "placement": {"cluster_name": "cluster-data-migration"},
+                    "hadoop_job": {
+                        "main_class": "org.apache.hadoop.fs.FsShell",
+                        "args": ["-ls", "/user/data/demo_migration/loans_ac/_SUCCESS"],
+                    },
+                },
             )
 
             # 2. TRANSFER: HDFS to GCS (Individual Job for Fault Isolation)
@@ -90,4 +82,4 @@ with DAG(
             )            
 
             # Task Dependencies within the Group
-            wait_for_hdfs_success >> transfer_to_gcs >> create_ext_table
+            check_file_job >> transfer_to_gcs >> create_ext_table
