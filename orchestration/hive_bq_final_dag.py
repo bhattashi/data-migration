@@ -108,7 +108,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 task_id="load_native_table",
                 configuration={
                     "query": {
-                        "query": NATIVE_LOAD_SQL,
+                        "query": native_load_sql,
                         "useLegacySql": False,
                     }
                 }
