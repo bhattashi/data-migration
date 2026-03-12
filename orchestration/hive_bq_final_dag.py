@@ -21,15 +21,6 @@ DATASET_FINAL = "final"    # Native Partitioned Tables
 DATASET_AUDIT = "audit"    # Validation History
 TABLES = ["loans_ac"] ## TABLES = ["loans_ac", "custmers", "products", "inventory"] # Add all 25 here
 
-# ----- BQ Native table SQL ------
-NATIVE_LOAD_SQL = f"""
-CREATE OR REPLACE TABLE `{PROJECT_ID}.{DATASET_FINAL}.{table}`
-PARTITION BY ingestion_date
-AS
-SELECT *, CURRENT_DATE() AS ingestion_date
-FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
-"""
-
 default_args = {
     'owner': 'data_engineer',
     'depends_on_past': False,
@@ -51,6 +42,14 @@ with DAG(
     # Loop through each table to create a parallel "Lane"
     for table in TABLES:
         with TaskGroup(group_id=f"process_{table}") as table_group:
+			# ----- BQ Native table SQL ------
+			NATIVE_LOAD_SQL = f"""
+			CREATE OR REPLACE TABLE `{PROJECT_ID}.{DATASET_FINAL}.{table}`
+			PARTITION BY ingestion_date
+			AS
+			SELECT *, CURRENT_DATE() AS ingestion_date
+			FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
+			"""
             
             # 1. We submit a tiny "ls" command to Dataproc
             check_file_job = DataprocSubmitJobOperator(
