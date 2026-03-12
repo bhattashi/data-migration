@@ -96,4 +96,4 @@ with DAG(
             )            
 
             # Task Dependencies within the Group
-            check_file_job >> transfer_to_gcs >> create_ext_table
+            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table
