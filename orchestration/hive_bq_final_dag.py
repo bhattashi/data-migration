@@ -135,7 +135,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
 						"timePartitioning": {
 							"type": "DAY",
 							"field": "ingestion_date"
-						}
+						},
                         "useLegacySql": False,
                     }
                 }
