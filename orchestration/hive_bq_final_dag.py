@@ -16,6 +16,7 @@ from datetime import datetime
 import requests
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.gcs import GCSDeleteObjectsOperator
+from airflow.operators.email import EmailOperator
 
 # --- CONFIGURATION ---
 PROJECT_ID = "project-6d37e6ba-d918-463b-93a"
@@ -32,7 +33,9 @@ partition_suffix = "{{ dag_run.conf.get('manual_date', ds) | replace('-', '') }}
 default_args = {
     'owner': 'data_engineer',
     'depends_on_past': False,
-    'email_on_failure': False,
+	'email': ['shalaka.bhatt@gmail.com'],
+    'email_on_failure': True,
+	'email_on_retry': True,  # This alerts you on every retry attempt
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
@@ -110,31 +113,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                     }
                 }
             )
-
-			# # 5. Load data into Native Partitioned BigQuery Table
-			# # Get today's date in YYYYMMDD format for the partition decorator
-   #          ds_nodash = datetime.now().strftime('%Y%m%d')
-   #          load_native_table = BigQueryInsertJobOperator(
-   #              task_id=f"load_native_table_{table}",
-   #              configuration={
-   #                  "query": {
-   #                      "query": f"SELECT *, CURRENT_DATE() as ingestion_date FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext` ",
-			# 			"destinationTable": {
-			# 				"projectId": PROJECT_ID,
-			# 				"datasetId": DATASET_FINAL,
-			# 				"tableId": f"{table}${ds_nodash}" # The '$' targets only today's partition
-			# 			},
-			# 			"writeDisposition": "WRITE_TRUNCATE", # Replaces ONLY today's partition
-			# 			"createDisposition": "CREATE_IF_NEEDED",
-			# 			"timePartitioning": {
-			# 				"type": "DAY",
-			# 				"field": "ingestion_date"
-			# 			},
-   #                      "useLegacySql": False,
-   #                  }
-   #              }
-   #          )
-
+			
 			# 5. Load data into Native Partitioned BigQuery Table
 			# Get today's date in YYYYMMDD format for the partition decorator
             load_native_table = BigQueryInsertJobOperator(
@@ -176,6 +155,22 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
 				# This deletes everything inside the folder for that specific table
 				prefix=f"{table}/",
             )
+
+			# 8. Success Notification Task
+		    send_success_email = EmailOperator(
+		        task_id=f"notify_success_{table}",
+		        to='shalaka.bhatt@gmail.com',
+		        subject=f"✅ Migration Successful: {table} ({target_date})",
+		        html_content=f"""
+		            <h3>Table Migration Complete</h3>
+		            <p><b>Table:</b> {table}</p>
+		            <p><b>Date:</b> {target_date}</p>
+		            <p><b>Status:</b> All steps (Transfer, Load, Validation, Cleanup) passed successfully.</p>
+		        """
+		    )
 			
             # Task Dependencies within the Group
-            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> validate_migration >> cleanup_gcs_raw_data
+            (
+				check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> validate_migration >> 
+				cleanup_gcs_raw_data >> send_success_email
+			)
