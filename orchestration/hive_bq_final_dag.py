@@ -10,9 +10,10 @@ from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobO
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 # from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 # from airflow.providers.http.sensors.http import HttpSensor
+# from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 import requests
 from airflow.operators.python import PythonOperator
-# from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
+from airflow.providers.google.cloud.operators.gcs import GCSDeleteObjectsOperator
 
 # --- CONFIGURATION ---
 PROJECT_ID = "project-6d37e6ba-d918-463b-93a"
@@ -113,6 +114,14 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                     }
                 }
             )
+
+			# 6. CLEANUP: Delete GCS Parquet files after successful BQ load
+			cleanup_gcs_raw_data = GCSDeleteObjectsOperator(
+				task_id="cleanup_gcs_raw_data",
+				bucket_name="hive-bq-demo-data-migration",
+				# This deletes everything inside the folder for that specific table
+				prefix=f"{table}/", 
+			)
 			
             # Task Dependencies within the Group
-            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table
+            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> cleanup_gcs_raw_data
