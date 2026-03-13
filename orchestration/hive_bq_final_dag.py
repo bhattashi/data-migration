@@ -166,7 +166,9 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
 				<p><b>Table:</b> {table}</p>
 				<p><b>Date:</b> {target_date}</p>
 				<p><b>Status:</b> All steps (Transfer, Load, Validation, Cleanup) passed successfully.</p>
-				"""
+				""",
+				# This points to the connection you just created in the UI
+				conn_id='smtp_default'
             )
             # Task Dependencies within the Group
             (
