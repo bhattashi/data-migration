@@ -157,18 +157,17 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
             )
 
 			# 8. Success Notification Task
-		    send_success_email = EmailOperator(
-		        task_id=f"notify_success_{table}",
-		        to='shalaka.bhatt@gmail.com',
-		        subject=f"✅ Migration Successful: {table} ({target_date})",
-		        html_content=f"""
-		            <h3>Table Migration Complete</h3>
-		            <p><b>Table:</b> {table}</p>
-		            <p><b>Date:</b> {target_date}</p>
-		            <p><b>Status:</b> All steps (Transfer, Load, Validation, Cleanup) passed successfully.</p>
-		        """
-		    )
-			
+            send_success_email = EmailOperator(
+                task_id=f"notify_success_{table}",
+				to='shalaka.bhatt@gmail.com',
+				subject=f"✅ Migration Successful: {table} ({target_date})",
+                html_content=f"""
+				<h3>Table Migration Complete</h3>
+				<p><b>Table:</b> {table}</p>
+				<p><b>Date:</b> {target_date}</p>
+				<p><b>Status:</b> All steps (Transfer, Load, Validation, Cleanup) passed successfully.</p>
+				"""
+            )
             # Task Dependencies within the Group
             (
 				check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> validate_migration >> 
