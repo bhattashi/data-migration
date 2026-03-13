@@ -9,6 +9,7 @@ from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOperator
+from datetime import datetime
 # from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 # from airflow.providers.http.sensors.http import HttpSensor
 # from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
@@ -105,12 +106,36 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 }
             )
 
-			# 5. Load data into Native BigQuery Table
+			# # 5. Load data into Native BigQuery Table
+   #          load_native_table = BigQueryInsertJobOperator(
+   #              task_id="load_native_table",
+   #              configuration={
+   #                  "query": {
+   #                      "query": native_load_sql,
+   #                      "useLegacySql": False,
+   #                  }
+   #              }
+   #          )
+
+			# 5. Load data into Native Partitioned BigQuery Table
+			# Get today's date in YYYYMMDD format for the partition decorator
+            ds_nodash = datetime.now().strftime('%Y%m%d')
             load_native_table = BigQueryInsertJobOperator(
-                task_id="load_native_table",
+                task_id=f"load_native_table_{table}",
                 configuration={
                     "query": {
-                        "query": native_load_sql,
+                        "query": f"SELECT *, CURRENT_DATE() as ingestion_date FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext` ",
+						"destinationTable": {
+							"projectId": PROJECT_ID,
+							"datasetId": DATASET_FINAL,
+							"tableId": f"{table}${ds_nodash}" # The '$' targets only today's partition
+						},
+						"writeDisposition": "WRITE_TRUNCATE", # Replaces ONLY today's partition
+						"createDisposition": "CREATE_IF_NEEDED",
+						"timePartitioning": {
+							"type": "DAY",
+							"field": "ingestion_date"
+						}
                         "useLegacySql": False,
                     }
                 }
