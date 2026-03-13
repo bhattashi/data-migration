@@ -106,17 +106,6 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 }
             )
 
-			# # 5. Load data into Native BigQuery Table
-   #          load_native_table = BigQueryInsertJobOperator(
-   #              task_id="load_native_table",
-   #              configuration={
-   #                  "query": {
-   #                      "query": native_load_sql,
-   #                      "useLegacySql": False,
-   #                  }
-   #              }
-   #          )
-
 			# 5. Load data into Native Partitioned BigQuery Table
 			# Get today's date in YYYYMMDD format for the partition decorator
             ds_nodash = datetime.now().strftime('%Y%m%d')
@@ -146,7 +135,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 task_id=f"validate_migration_{table}",
                 sql=f"""
 				SELECT
-				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_FINAL}.{table}`) =
+				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_FINAL}.{table}` WHERE ingestion_date = CURRENT_DATE()) =
 				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`)
 				""",
 				use_legacy_sql=False,
