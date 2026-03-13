@@ -8,6 +8,7 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobO
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOperator
 # from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 # from airflow.providers.http.sensors.http import HttpSensor
 # from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
@@ -115,7 +116,18 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 }
             )
 
-			# 6. CLEANUP: Delete GCS Parquet files after successful BQ load
+			# 6. VALIDATION: Ext vs Native table count check before raw files clean-up
+            validate_migration = BigQueryCheckOperator(
+                task_id=f"validate_migration_{table}",
+                sql=f"""
+				SELECT
+				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_FINAL}.{table}`) =
+				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`)
+				""",
+				use_legacy_sql=False,
+            )
+
+			# 7. CLEANUP: Delete GCS Parquet files after successful BQ load
             cleanup_gcs_raw_data = GCSDeleteObjectsOperator(
                 task_id="cleanup_gcs_raw_data",
                 bucket_name="hive-bq-demo-data-migration",
@@ -124,4 +136,4 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
             )
 			
             # Task Dependencies within the Group
-            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> cleanup_gcs_raw_data
+            check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> validate_migration >> cleanup_gcs_raw_data
