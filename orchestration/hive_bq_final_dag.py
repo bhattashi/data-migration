@@ -116,12 +116,12 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
             )
 
 			# 6. CLEANUP: Delete GCS Parquet files after successful BQ load
-			cleanup_gcs_raw_data = GCSDeleteObjectsOperator(
-				task_id="cleanup_gcs_raw_data",
-				bucket_name="hive-bq-demo-data-migration",
+            cleanup_gcs_raw_data = GCSDeleteObjectsOperator(
+                task_id="cleanup_gcs_raw_data",
+                bucket_name="hive-bq-demo-data-migration",
 				# This deletes everything inside the folder for that specific table
-				prefix=f"{table}/", 
-			)
+				prefix=f"{table}/",
+            )
 			
             # Task Dependencies within the Group
             check_file_job >> transfer_to_gcs >> wait_for_transfer >> create_ext_table >> load_native_table >> cleanup_gcs_raw_data
