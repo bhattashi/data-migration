@@ -24,6 +24,11 @@ DATASET_FINAL = "final"    # Native Partitioned Tables
 DATASET_AUDIT = "audit"    # Validation History
 TABLES = ["loans_ac"] ## TABLES = ["loans_ac", "custmers", "products", "inventory"] # Add all 25 here
 
+# This Jinja logic picks the manually triggered date OR the daily scheduled date (ds)
+# The 'ds_nodash' version (YYYYMMDD) is required for the BQ $ decorator
+target_date = "{{ dag_run.conf.get('manual_date', ds) }}"
+partition_suffix = "{{ dag_run.conf.get('manual_date', ds) | replace('-', '') }}"
+
 default_args = {
     'owner': 'data_engineer',
     'depends_on_past': False,
@@ -56,7 +61,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
             
             # 1. We submit a tiny "ls" command to Dataproc
             check_file_job = DataprocSubmitJobOperator(
-                task_id="check_hdfs_file_via_api",
+                task_id=f"check_hdfs_file_via_api_{table}",
                 project_id="project-6d37e6ba-d918-463b-93a",
                 region="us-central1",
                 job={
@@ -71,14 +76,14 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
 
             # 2. TRANSFER: HDFS to GCS (Individual Job for Fault Isolation)
             transfer_to_gcs = CloudDataTransferServiceRunJobOperator(
-                task_id="transfer_to_gcs",
+                task_id=f"transfer_to_gcs_{table}",
                 job_name="transferJobs/14508589021579537930",
                 project_id=PROJECT_ID
             )
 
             # 3. This sensor polls the STS API to see if the job has finished successfully
             wait_for_transfer = CloudDataTransferServiceJobStatusSensor(
-                task_id="wait_for_transfer",
+                task_id=f"wait_for_transfer_{table}",
                 # Note: Use the same job_name format as the RunJobOperator
                 job_name="transferJobs/14508589021579537930",
                 project_id=PROJECT_ID,
@@ -91,7 +96,7 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
 
             # 4. EXTERNAL TABLE: Create Metadata Link
             create_ext_table = BigQueryInsertJobOperator(
-                task_id="create_external_table",
+                task_id=f"create_external_table_{table}",
                 configuration={
                     "query": {
                         "query": f"""
@@ -106,18 +111,41 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 }
             )
 
+			# # 5. Load data into Native Partitioned BigQuery Table
+			# # Get today's date in YYYYMMDD format for the partition decorator
+   #          ds_nodash = datetime.now().strftime('%Y%m%d')
+   #          load_native_table = BigQueryInsertJobOperator(
+   #              task_id=f"load_native_table_{table}",
+   #              configuration={
+   #                  "query": {
+   #                      "query": f"SELECT *, CURRENT_DATE() as ingestion_date FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext` ",
+			# 			"destinationTable": {
+			# 				"projectId": PROJECT_ID,
+			# 				"datasetId": DATASET_FINAL,
+			# 				"tableId": f"{table}${ds_nodash}" # The '$' targets only today's partition
+			# 			},
+			# 			"writeDisposition": "WRITE_TRUNCATE", # Replaces ONLY today's partition
+			# 			"createDisposition": "CREATE_IF_NEEDED",
+			# 			"timePartitioning": {
+			# 				"type": "DAY",
+			# 				"field": "ingestion_date"
+			# 			},
+   #                      "useLegacySql": False,
+   #                  }
+   #              }
+   #          )
+
 			# 5. Load data into Native Partitioned BigQuery Table
 			# Get today's date in YYYYMMDD format for the partition decorator
-            ds_nodash = datetime.now().strftime('%Y%m%d')
             load_native_table = BigQueryInsertJobOperator(
                 task_id=f"load_native_table_{table}",
                 configuration={
                     "query": {
-                        "query": f"SELECT *, CURRENT_DATE() as ingestion_date FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext` ",
+                        "query": f"SELECT *, DATE('{target_date}') as ingestion_date FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext` ",
 						"destinationTable": {
 							"projectId": PROJECT_ID,
 							"datasetId": DATASET_FINAL,
-							"tableId": f"{table}${ds_nodash}" # The '$' targets only today's partition
+							"tableId": f"{table}${partition_suffix}" # The '$' targets only today's partition
 						},
 						"writeDisposition": "WRITE_TRUNCATE", # Replaces ONLY today's partition
 						"createDisposition": "CREATE_IF_NEEDED",
@@ -135,15 +163,15 @@ FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`
                 task_id=f"validate_migration_{table}",
                 sql=f"""
 				SELECT
-				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_FINAL}.{table}` WHERE ingestion_date = CURRENT_DATE()) =
+				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_FINAL}.{table}` WHERE ingestion_date = DATE('{target_date}')) =
 				(SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_RAW}.{table}_ext`)
 				""",
 				use_legacy_sql=False,
             )
 
-			# 7. CLEANUP: Delete GCS Parquet files after successful BQ load
+			# 7. CLEANUP GCS: (Destructive - runs ONLY if validation passes)
             cleanup_gcs_raw_data = GCSDeleteObjectsOperator(
-                task_id="cleanup_gcs_raw_data",
+                task_id=f"cleanup_gcs_raw_data_{table}",
                 bucket_name="hive-bq-demo-data-migration",
 				# This deletes everything inside the folder for that specific table
 				prefix=f"{table}/",
